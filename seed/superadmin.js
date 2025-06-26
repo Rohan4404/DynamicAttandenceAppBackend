@@ -4,7 +4,7 @@ const Superadmin = require("../models/Superadmin");
 
 const seedSuperadmin = async () => {
   await sequelize.authenticate();
-  await sequelize.sync({ alter: true });
+  await sequelize.sync({ alter: false });
 
   const existing = await Superadmin.findOne({
     where: { email: "superadmin@hr.com" },
