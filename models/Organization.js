@@ -58,7 +58,13 @@ const Organization = sequelize.define(
     otp: DataTypes.STRING,
 
     otp_generated_at: {
-      type: DataTypes.DATE, // ⏱️ Added to track OTP timestamp
+      type: DataTypes.DATE,
+    },
+
+    role: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: "admin", // ✅ Default role
     },
   },
   {

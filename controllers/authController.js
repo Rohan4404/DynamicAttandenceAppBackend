@@ -123,19 +123,66 @@ exports.verifyOtp = async (req, res) => {
 };
 
 // 📌 Sign In
+// exports.signIn = async (req, res) => {
+//   const { email, password } = req.body;
+
+//   try {
+//     const org = await Organization.findOne({ where: { email } });
+
+//     if (!org || !org.is_verified) {
+//       return res.status(401).json({
+//         success: false,
+//         message: "Not authorized or not verified",
+//       });
+//     }
+
+//     const isMatch = await bcrypt.compare(password, org.password);
+//     if (!isMatch) {
+//       return res.status(401).json({
+//         success: false,
+//         message: "Wrong password",
+//       });
+//     }
+
+//     const token = jwt.sign(
+//       { id: org.id, role: "org-admin" },
+//       process.env.JWT_SECRET
+//     );
+
+//     res.json({
+//       success: true,
+//       message: "Sign-in successful",
+//       token,
+//       organization: {
+//         id: org.id,
+//         name: org.name,
+//         email: org.email,
+//         phone: org.phone,
+//         address: org.address,
+//         org_code: org.org_code,
+//         contact_person_name: org.contact_person_name,
+//         contact_person_number: org.contact_person_number,
+//       },
+//     });
+//   } catch (err) {
+//     console.error("❌ Sign-in error:", err);
+//     res.status(500).json({
+//       success: false,
+//       message: "Server error during sign-in.",
+//     });
+//   }
+// };
+
 exports.signIn = async (req, res) => {
   const { email, password } = req.body;
-
   try {
     const org = await Organization.findOne({ where: { email } });
-
     if (!org || !org.is_verified) {
       return res.status(401).json({
         success: false,
         message: "Not authorized or not verified",
       });
     }
-
     const isMatch = await bcrypt.compare(password, org.password);
     if (!isMatch) {
       return res.status(401).json({
@@ -143,16 +190,15 @@ exports.signIn = async (req, res) => {
         message: "Wrong password",
       });
     }
-
     const token = jwt.sign(
       { id: org.id, role: "org-admin" },
       process.env.JWT_SECRET
     );
-
     res.json({
       success: true,
       message: "Sign-in successful",
       token,
+      role: org.role, // :white_check_mark: Include role for frontend
       organization: {
         id: org.id,
         name: org.name,
@@ -165,7 +211,7 @@ exports.signIn = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("❌ Sign-in error:", err);
+    console.error(":x: Sign-in error:", err);
     res.status(500).json({
       success: false,
       message: "Server error during sign-in.",
