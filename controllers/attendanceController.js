@@ -1,6 +1,5 @@
 const Attendance = require("../models/Attendance");
 const User = require("../models/User");
-const { Op } = require("sequelize");
 
 // 📌 Mark Check-In
 exports.markCheckIn = async (req, res) => {
@@ -11,6 +10,7 @@ exports.markCheckIn = async (req, res) => {
   try {
     if (!location) {
       return res.status(400).json({
+        success: false,
         code: "CHECKIN_LOCATION_REQUIRED",
         message: "Location is required for check-in.",
       });
@@ -19,6 +19,7 @@ exports.markCheckIn = async (req, res) => {
     const user = await User.findOne({ where: { employee_id } });
     if (!user) {
       return res.status(404).json({
+        success: false,
         code: "INVALID_EMPLOYEE_ID",
         message: "Employee not found.",
       });
@@ -30,6 +31,7 @@ exports.markCheckIn = async (req, res) => {
 
     if (existing) {
       return res.status(400).json({
+        success: false,
         code: "ALREADY_CHECKED_IN",
         message: "Already checked in for today.",
       });
@@ -42,10 +44,15 @@ exports.markCheckIn = async (req, res) => {
       check_in_location: location,
     });
 
-    res.status(201).json({ message: "Checked in", attendance });
+    res.status(201).json({
+      success: true,
+      message: "Check-in successful.",
+      data: attendance,
+    });
   } catch (err) {
     console.error("❌ Check-in error:", err);
     res.status(500).json({
+      success: false,
       code: "CHECKIN_ERROR",
       message: "Failed to check in",
     });
@@ -62,6 +69,7 @@ exports.markCheckOut = async (req, res) => {
     const user = await User.findOne({ where: { employee_id } });
     if (!user) {
       return res.status(404).json({
+        success: false,
         code: "INVALID_EMPLOYEE_ID",
         message: "Employee not found.",
       });
@@ -73,6 +81,7 @@ exports.markCheckOut = async (req, res) => {
 
     if (!attendance) {
       return res.status(400).json({
+        success: false,
         code: "NOT_CHECKED_IN",
         message: "User hasn't checked in today.",
       });
@@ -80,6 +89,7 @@ exports.markCheckOut = async (req, res) => {
 
     if (attendance.check_out) {
       return res.status(400).json({
+        success: false,
         code: "ALREADY_CHECKED_OUT",
         message: "Already checked out for today.",
       });
@@ -89,10 +99,15 @@ exports.markCheckOut = async (req, res) => {
     attendance.check_out_location = location || null;
     await attendance.save();
 
-    res.status(200).json({ message: "Checked out", attendance });
+    res.status(200).json({
+      success: true,
+      message: "Check-out successful.",
+      data: attendance,
+    });
   } catch (err) {
     console.error("❌ Check-out error:", err);
     res.status(500).json({
+      success: false,
       code: "CHECKOUT_ERROR",
       message: "Failed to check out",
     });
@@ -108,6 +123,7 @@ exports.getTodayAttendance = async (req, res) => {
     const user = await User.findOne({ where: { employee_id } });
     if (!user) {
       return res.status(404).json({
+        success: false,
         code: "INVALID_EMPLOYEE_ID",
         message: "Employee not found.",
       });
@@ -119,15 +135,21 @@ exports.getTodayAttendance = async (req, res) => {
 
     if (!record) {
       return res.status(404).json({
+        success: false,
         code: "NOT_FOUND",
-        message: "No attendance for today",
+        message: "No attendance record found for today.",
       });
     }
 
-    res.json(record);
+    res.json({
+      success: true,
+      message: "Attendance record found.",
+      data: record,
+    });
   } catch (err) {
     console.error("❌ Fetch error:", err);
     res.status(500).json({
+      success: false,
       code: "FETCH_ERROR",
       message: "Error fetching today's attendance",
     });
@@ -142,6 +164,7 @@ exports.getAttendanceHistory = async (req, res) => {
     const user = await User.findOne({ where: { employee_id } });
     if (!user) {
       return res.status(404).json({
+        success: false,
         code: "INVALID_EMPLOYEE_ID",
         message: "Employee not found.",
       });
@@ -152,10 +175,16 @@ exports.getAttendanceHistory = async (req, res) => {
       order: [["date", "DESC"]],
     });
 
-    res.json(records);
+    res.json({
+      success: true,
+      message: "Attendance history fetched.",
+      count: records.length,
+      data: records,
+    });
   } catch (err) {
     console.error("❌ History error:", err);
     res.status(500).json({
+      success: false,
       code: "FETCH_HISTORY_ERROR",
       message: "Error fetching attendance history",
     });

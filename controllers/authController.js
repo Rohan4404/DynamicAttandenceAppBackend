@@ -5,6 +5,7 @@ const sendMail = require("../utils/sendMail");
 
 const OTP_VALID_DURATION = 10 * 60 * 1000; // 10 minutes
 
+// 📌 Sign Up
 exports.signUp = async (req, res) => {
   const {
     name,
@@ -20,12 +21,18 @@ exports.signUp = async (req, res) => {
     const existingEmail = await Organization.findOne({ where: { email } });
     const existingName = await Organization.findOne({ where: { name } });
 
-    if (existingEmail)
-      return res.status(400).json({ message: "Email already exists" });
-    if (existingName)
-      return res
-        .status(400)
-        .json({ message: "Organization name already exists" });
+    if (existingEmail) {
+      return res.status(400).json({
+        success: false,
+        message: "Email already exists",
+      });
+    }
+    if (existingName) {
+      return res.status(400).json({
+        success: false,
+        message: "Organization name already exists",
+      });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -40,7 +47,7 @@ exports.signUp = async (req, res) => {
       contact_person_name,
       contact_person_number,
       otp,
-      otp_generated_at: new Date(), // ✅ set generation time
+      otp_generated_at: new Date(),
       org_code,
     });
 
@@ -50,19 +57,29 @@ exports.signUp = async (req, res) => {
       `Hello ${name},\n\nYour OTP for verifying your organization is: ${otp}\n\nThank you.`
     );
 
-    res.status(201).json({ message: "Registered. OTP sent to email." });
+    res.status(201).json({
+      success: true,
+      message: "Registered successfully. OTP sent to email.",
+    });
   } catch (error) {
     console.error("❌ Sign-up error:", error);
     if (
       error.name === "SequelizeValidationError" ||
       error.name === "SequelizeUniqueConstraintError"
     ) {
-      return res.status(400).json({ message: error.errors[0].message });
+      return res.status(400).json({
+        success: false,
+        message: error.errors[0].message,
+      });
     }
-    res.status(500).json({ message: "Server error during registration." });
+    res.status(500).json({
+      success: false,
+      message: "Server error during registration.",
+    });
   }
 };
 
+// 📌 Verify OTP
 exports.verifyOtp = async (req, res) => {
   const { email, otp } = req.body;
 
@@ -71,6 +88,7 @@ exports.verifyOtp = async (req, res) => {
 
     if (!org || org.otp !== otp) {
       return res.status(400).json({
+        success: false,
         code: "INVALID_OTP",
         message: "Invalid OTP",
       });
@@ -79,6 +97,7 @@ exports.verifyOtp = async (req, res) => {
     const timeSinceOtp = new Date() - new Date(org.otp_generated_at);
     if (timeSinceOtp > OTP_VALID_DURATION) {
       return res.status(400).json({
+        success: false,
         code: "OTP_EXPIRED",
         message: "OTP expired. Please request a new one.",
       });
@@ -89,28 +108,41 @@ exports.verifyOtp = async (req, res) => {
     org.otp_generated_at = null;
     await org.save();
 
-    res.status(200).json({ message: "Organization verified." });
+    res.status(200).json({
+      success: true,
+      message: "Organization verified.",
+    });
   } catch (err) {
     console.error("❌ OTP verification error:", err);
-    res
-      .status(500)
-      .json({ code: "SERVER_ERROR", message: "Failed to verify OTP." });
+    res.status(500).json({
+      success: false,
+      code: "SERVER_ERROR",
+      message: "Failed to verify OTP.",
+    });
   }
 };
 
+// 📌 Sign In
 exports.signIn = async (req, res) => {
   const { email, password } = req.body;
 
   try {
     const org = await Organization.findOne({ where: { email } });
 
-    if (!org || !org.is_verified)
-      return res
-        .status(401)
-        .json({ message: "Not authorized or not verified" });
+    if (!org || !org.is_verified) {
+      return res.status(401).json({
+        success: false,
+        message: "Not authorized or not verified",
+      });
+    }
 
     const isMatch = await bcrypt.compare(password, org.password);
-    if (!isMatch) return res.status(401).json({ message: "Wrong password" });
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: "Wrong password",
+      });
+    }
 
     const token = jwt.sign(
       { id: org.id, role: "org-admin" },
@@ -118,6 +150,7 @@ exports.signIn = async (req, res) => {
     );
 
     res.json({
+      success: true,
       message: "Sign-in successful",
       token,
       organization: {
@@ -133,27 +166,35 @@ exports.signIn = async (req, res) => {
     });
   } catch (err) {
     console.error("❌ Sign-in error:", err);
-    res.status(500).json({ message: "Server error during sign-in." });
+    res.status(500).json({
+      success: false,
+      message: "Server error during sign-in.",
+    });
   }
 };
 
+// 📌 Resend OTP
 exports.resendOtp = async (req, res) => {
   const { email } = req.body;
 
   try {
     const org = await Organization.findOne({ where: { email } });
 
-    if (!org)
+    if (!org) {
       return res.status(404).json({
+        success: false,
         code: "ORG_NOT_FOUND",
         message: "Organization not found",
       });
+    }
 
-    if (org.is_verified)
+    if (org.is_verified) {
       return res.status(400).json({
+        success: false,
         code: "ALREADY_VERIFIED",
         message: "Organization already verified",
       });
+    }
 
     const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
     org.otp = newOtp;
@@ -166,23 +207,32 @@ exports.resendOtp = async (req, res) => {
       `Hello ${org.name},\n\nYour new OTP for verifying your organization is: ${newOtp}\n\nThank you.`
     );
 
-    res.status(200).json({ message: "OTP resent successfully." });
+    res.status(200).json({
+      success: true,
+      message: "OTP resent successfully.",
+    });
   } catch (err) {
     console.error("❌ OTP resend error:", err);
-    res
-      .status(500)
-      .json({ code: "SERVER_ERROR", message: "Failed to resend OTP." });
+    res.status(500).json({
+      success: false,
+      code: "SERVER_ERROR",
+      message: "Failed to resend OTP.",
+    });
   }
 };
 
-// 📌 Forgot Password - Sends OTP to email
+// 📌 Forgot Password
 exports.forgotPassword = async (req, res) => {
   const { email } = req.body;
 
   try {
     const org = await Organization.findOne({ where: { email } });
-    if (!org)
-      return res.status(404).json({ message: "Organization not found" });
+    if (!org) {
+      return res.status(404).json({
+        success: false,
+        message: "Organization not found",
+      });
+    }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     org.otp = otp;
@@ -195,27 +245,38 @@ exports.forgotPassword = async (req, res) => {
       `Hello ${org.name},\n\nYour OTP for resetting your password is: ${otp}\n\nIf you didn’t request this, please ignore.`
     );
 
-    res.json({ message: "OTP sent to email for password reset." });
+    res.json({
+      success: true,
+      message: "OTP sent to email for password reset.",
+    });
   } catch (err) {
     console.error("❌ Forgot password error:", err);
-    res.status(500).json({ message: "Failed to send reset OTP." });
+    res.status(500).json({
+      success: false,
+      message: "Failed to send reset OTP.",
+    });
   }
 };
 
-// 📌 Reset Password - Verify OTP and update password
+// 📌 Reset Password
 exports.resetPassword = async (req, res) => {
   const { email, otp, newPassword } = req.body;
 
   try {
     const org = await Organization.findOne({ where: { email } });
-    if (!org || org.otp !== otp)
-      return res.status(400).json({ message: "Invalid OTP or email." });
+    if (!org || org.otp !== otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP or email.",
+      });
+    }
 
     const timeSinceOtp = new Date() - new Date(org.otp_generated_at);
     if (timeSinceOtp > OTP_VALID_DURATION) {
-      return res
-        .status(400)
-        .json({ message: "OTP expired. Please request a new one." });
+      return res.status(400).json({
+        success: false,
+        message: "OTP expired. Please request a new one.",
+      });
     }
 
     org.password = await bcrypt.hash(newPassword, 10);
@@ -223,9 +284,15 @@ exports.resetPassword = async (req, res) => {
     org.otp_generated_at = null;
     await org.save();
 
-    res.json({ message: "Password reset successfully." });
+    res.json({
+      success: true,
+      message: "Password reset successfully.",
+    });
   } catch (err) {
     console.error("❌ Reset password error:", err);
-    res.status(500).json({ message: "Failed to reset password." });
+    res.status(500).json({
+      success: false,
+      message: "Failed to reset password.",
+    });
   }
 };
