@@ -190,3 +190,89 @@ exports.getAttendanceHistory = async (req, res) => {
     });
   }
 };
+
+exports.getAttendanceByDate = async (req, res) => {
+  const { employee_id, date } = req.params;
+
+  try {
+    // Validate user existence
+    const user = await User.findOne({ where: { employee_id } });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        code: "INVALID_EMPLOYEE_ID",
+        message: "Employee not found.",
+      });
+    }
+
+    // Fetch attendance for the given date
+    const record = await Attendance.findOne({
+      where: {
+        employee_id,
+        date, // assumes date is in 'YYYY-MM-DD' format
+      },
+    });
+
+    if (!record) {
+      return res.status(404).json({
+        success: false,
+        code: "NO_RECORD_FOUND",
+        message: `No attendance found for ${employee_id} on ${date}`,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Attendance fetched for ${date}`,
+      data: record,
+    });
+  } catch (err) {
+    console.error("❌ Error fetching attendance by date:", err);
+    res.status(500).json({
+      success: false,
+      code: "FETCH_ATTENDANCE_DATE_ERROR",
+      message: "Error fetching attendance for given date",
+    });
+  }
+};
+
+exports.setMacApiToZero = async (req, res) => {
+  const { employee_id } = req.params;
+
+  try {
+    const user = await User.findOne({ where: { employee_id } });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        code: "INVALID_EMPLOYEE_ID",
+        message: "Employee not found.",
+      });
+    }
+
+    if (user.mac_api !== 1) {
+      return res.status(200).json({
+        success: false,
+        code: "MAC_API_ALREADY_ZERO",
+        message: "MAC API is already set to 0. No changes made.",
+      });
+    }
+
+    await user.update({
+      mac_api: 0,
+      mac_address: null,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "MAC API reset to 0 and MAC address removed.",
+    });
+  } catch (err) {
+    console.error("❌ MAC reset error:", err);
+    return res.status(500).json({
+      success: false,
+      code: "MAC_RESET_ERROR",
+      message: "Error resetting MAC API.",
+    });
+  }
+};
